@@ -1,0 +1,61 @@
+# CMake
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+*.cmake
+
+# Build directories
+build/
+Debug/
+Release/
+x64/
+Win32/
+
+# IDE
+.vs/
+.vscode/
+*.sln
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Object files
+*.o
+*.obj
+*.so
+*.so.*
+*.dylib
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
+*.elf
+
+# Temp files
+*.tmp
+*.bak
+*.swp
+*~
+.DS_Store
+
+# Backup files
+*.backup
+*.orig
+bak.zip
+
+# Output files
+*.ilk
+*.pdb
+
+# Logging
+CMakeOutput.log
+CMakeError.log
