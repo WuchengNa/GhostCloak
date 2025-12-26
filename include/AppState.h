@@ -19,6 +19,8 @@ struct AppState {
     
     // Auto Clicker Properties
     bool autoClick = false;
+    bool lockWindowPosition = false;
+    bool holeFollowCursor = false;
     int dotX = 50, dotY = 50;
     const int dotSize =50;
 };

@@ -23,6 +23,8 @@
 #define ID_TRAY_GRAB        1002
 #define ID_TRAY_RESET       1003
 #define ID_TRAY_AUTOCLICK   1004
+#define ID_TRAY_LOCKMOVE    1005
+#define ID_TRAY_HOLEFOLLOW  1006
 #define IDT_AUTOCLICK       999
 
 const COLORREF TRANSPARENT_KEY = RGB(0, 255, 0);
@@ -128,6 +130,15 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nCmdShow) {
 // Window Procedure
 // ==========================================
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
+    // Intercept ESC early: if we are in Hole-Follow mode, Esc should exit that mode and not close the app.
+    if ((message == WM_KEYDOWN || message == WM_CHAR) && wParam == VK_ESCAPE) {
+        if (g_State.holeFollowCursor) {
+            g_State.holeFollowCursor = false;
+            InvalidateRect(hWnd, NULL, FALSE);
+            return 0;
+        }
+    }
+
     switch (message) {
     case WM_ENTERSIZEMOVE:
         if (g_State.autoClick) {
@@ -206,9 +217,24 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
     }
 
     case WM_MOUSEMOVE: {
+        POINT pt = { GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
         if (g_dragMgr->GetDragMode() != DRAG_NONE) {
-            POINT pt = { GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
             g_dragMgr->UpdateDrag(pt.x, pt.y, g_State);
+            InvalidateRect(hWnd, NULL, FALSE);
+        } else if (g_State.holeFollowCursor) {
+            // Use current client rect so clamps match actual window size
+            RECT rc;
+            GetClientRect(hWnd, &rc);
+            int clientW = rc.right - rc.left;
+            int clientH = rc.bottom - rc.top;
+
+            // Move hole so that mouse is its center
+            g_State.holeX = pt.x - g_State.holeW / 2;
+            g_State.holeY = pt.y - g_State.holeH / 2;
+            if (g_State.holeX < 0) g_State.holeX = 0;
+            if (g_State.holeY < 0) g_State.holeY = 0;
+            if (g_State.holeX > clientW - g_State.holeW) g_State.holeX = max(0, clientW - g_State.holeW);
+            if (g_State.holeY > clientH - g_State.holeH) g_State.holeY = max(0, clientH - g_State.holeH);
             InvalidateRect(hWnd, NULL, FALSE);
         }
         return 0;
@@ -231,13 +257,19 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
             }
             InvalidateRect(hWnd, NULL, TRUE);
         }
+        else if (LOWORD(wParam) == ID_TRAY_HOLEFOLLOW) {
+            g_State.holeFollowCursor = !g_State.holeFollowCursor;
+        }
+        else if (LOWORD(wParam) == ID_TRAY_LOCKMOVE) {
+            g_State.lockWindowPosition = !g_State.lockWindowPosition;
+        }
         else if (LOWORD(wParam) == ID_TRAY_GRAB) {
             g_bgMgr->GrabBackground(hWnd);
         }
         else if (LOWORD(wParam) == ID_TRAY_RESET) {
             g_bgMgr->ResetBackground(hWnd);
         }
-        return 0;
+        return 0; 
     }
 
     case WM_TIMER: {
@@ -259,7 +291,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
     case WM_KEYDOWN:
         switch (wParam) {
         case VK_ESCAPE:
-            DestroyWindow(hWnd);
+            if (g_State.holeFollowCursor) {
+                g_State.holeFollowCursor = false;
+                InvalidateRect(hWnd, NULL, FALSE);
+            } else {
+                DestroyWindow(hWnd);
+            }
             break;
         case VK_LEFT:
             g_State.holeX -= 2;
@@ -279,6 +316,53 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
             break;
         }
         return 0;
+
+    case WM_SIZE: {
+        int w = LOWORD(lParam);
+        int h = HIWORD(lParam);
+        if (w > 0 && h > 0) {
+            g_State.winW = w;
+            g_State.winH = h;
+
+            int maxHoleX = g_State.winW - g_State.holeW;
+            if (maxHoleX < 0) maxHoleX = 0;
+            int maxHoleY = g_State.winH - g_State.holeH;
+            if (maxHoleY < 0) maxHoleY = 0;
+            if (g_State.holeX > maxHoleX) g_State.holeX = maxHoleX;
+            if (g_State.holeY > maxHoleY) g_State.holeY = maxHoleY;
+
+            int maxDotX = g_State.winW - g_State.dotSize;
+            if (maxDotX < 0) maxDotX = 0;
+            int maxDotY = g_State.winH - g_State.dotSize;
+            if (maxDotY < 0) maxDotY = 0;
+            if (g_State.dotX > maxDotX) g_State.dotX = maxDotX;
+            if (g_State.dotY > maxDotY) g_State.dotY = maxDotY;
+
+            InvalidateRect(hWnd, NULL, FALSE);
+        }
+        return 0;
+    }
+
+    case WM_WINDOWPOSCHANGED: {
+        RECT rc;
+        GetClientRect(hWnd, &rc);
+        int w = rc.right - rc.left;
+        int h = rc.bottom - rc.top;
+        if (w != g_State.winW || h != g_State.winH) {
+            g_State.winW = w;
+            g_State.winH = h;
+
+            int maxHoleX = g_State.winW - g_State.holeW;
+            if (maxHoleX < 0) maxHoleX = 0;
+            int maxHoleY = g_State.winH - g_State.holeH;
+            if (maxHoleY < 0) maxHoleY = 0;
+            if (g_State.holeX > maxHoleX) g_State.holeX = maxHoleX;
+            if (g_State.holeY > maxHoleY) g_State.holeY = maxHoleY;
+
+            InvalidateRect(hWnd, NULL, FALSE);
+        }
+        return 0;
+    }
 
     case WM_MOUSEWHEEL: {
         int delta = GET_WHEEL_DELTA_WPARAM(wParam);

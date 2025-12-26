@@ -62,6 +62,6 @@ void AutoClickManager::ResetTimer(HWND hWnd) {
 }
 
 int AutoClickManager::GenerateRandomInterval() {
-    return (rand() % 17000) + 3000; // 3-20s
+    return (rand() % 7000) + 3000; // 3-20s
 }
          

@@ -52,8 +52,9 @@ LRESULT WindowHelper::HandleNCHitTest(HWND hWnd, const AppState& state, POINT pt
     if (pt.y < m) return HTTOP;
     if (pt.y > rc.bottom - m) return HTBOTTOM;
 
+    if (state.lockWindowPosition) return HTCLIENT;
     return HTCAPTION;
-}
+} 
 
 void WindowHelper::SetTransparency(HWND hWnd, BYTE alpha) {
     SetLayeredWindowAttributes(hWnd, RGB(0, 255, 0), alpha, LWA_COLORKEY | LWA_ALPHA);

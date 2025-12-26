@@ -36,7 +36,7 @@ void GDIPlusHelper::RenderWindow(HDC hdc, const AppState& state, Image* bgImage)
     graphics.FillRectangle(&frameBrush, state.holeX, state.holeY, state.holeW, state.holeH);
 
     // 3. Draw Inner Hole (Green/Transparent)
-    int b = 2;
+    int b = 5; //border thickness
     SolidBrush holeBrush(Color(255, 0, 255, 0));
     graphics.FillRectangle(&holeBrush, state.holeX + b, state.holeY + b, state.holeW - 2*b, state.holeH - 2*b);
 

@@ -15,7 +15,11 @@ void ConfigManager::LoadConfig() {
     m_state.holeH = ::GetPrivateProfileIntW(L"Hole", L"H", 200, m_state.configPath.c_str());
     int alphaInt = ::GetPrivateProfileIntW(L"State", L"Alpha", 153, m_state.configPath.c_str());
     int bgModeInt = ::GetPrivateProfileIntW(L"State", L"BgMode", 0, m_state.configPath.c_str());
+    int lockInt = ::GetPrivateProfileIntW(L"State", L"LockWindowPosition", 0, m_state.configPath.c_str());
+    int followInt = ::GetPrivateProfileIntW(L"State", L"HoleFollowCursor", 0, m_state.configPath.c_str());
     m_state.bgMode = (bgModeInt != 0);
+    m_state.lockWindowPosition = (lockInt != 0);
+    m_state.holeFollowCursor = (followInt != 0);
 
     // Validate ranges and apply safe defaults when values are out-of-range.
     const int MIN_WIN_W = 200;
@@ -64,4 +68,6 @@ void ConfigManager::SaveConfig() {
 
     ::WritePrivateProfileStringW(L"State", L"Alpha", _itow(m_state.alpha, buf, 10), m_state.configPath.c_str());
     ::WritePrivateProfileStringW(L"State", L"BgMode", _itow(m_state.bgMode, buf, 10), m_state.configPath.c_str());
+    ::WritePrivateProfileStringW(L"State", L"LockWindowPosition", _itow(m_state.lockWindowPosition, buf, 10), m_state.configPath.c_str());
+    ::WritePrivateProfileStringW(L"State", L"HoleFollowCursor", _itow(m_state.holeFollowCursor, buf, 10), m_state.configPath.c_str());
 }
