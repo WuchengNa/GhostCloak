@@ -1,0 +1,17 @@
+#pragma once
+
+#define ID_TRAY_EXIT                1001
+#define ID_TRAY_GRAB                1002
+#define ID_TRAY_RESET               1003
+#define ID_TRAY_AUTOCLICK           1004
+#define ID_TRAY_LOCKMOVE            1005
+#define ID_TRAY_HOLEFOLLOW          1006
+#define ID_TRAY_ADD_AUTOCLICK_POINT 1007
+#define ID_TRAY_REMOVE_AUTOCLICK_POINT 1008
+#define ID_TRAY_SET_INTERVAL_1000   1010
+#define ID_TRAY_SET_INTERVAL_2000   1011
+#define ID_TRAY_SET_INTERVAL_3000   1012
+#define ID_TRAY_SET_INTERVAL_5000   1013
+#define ID_TRAY_SET_INTERVAL_10000  1014
+
+#define IDT_AUTOCLICK              999

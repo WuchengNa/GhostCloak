@@ -13,6 +13,8 @@ public:
     
 private:
     AppState& m_state;
+    int m_currentPointIndex = 0;
     
-    int GenerateRandomInterval();
+    int GetCurrentPointInterval() const;
+    void AdvanceToNextPoint();
 };

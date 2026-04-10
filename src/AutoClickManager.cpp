@@ -1,16 +1,22 @@
 #include "AutoClickManager.h"
+#include "Commands.h"
 #include <windows.h>
 #include <cstdlib>
-
-#define IDT_AUTOCLICK 999
 
 AutoClickManager::AutoClickManager(AppState& state) : m_state(state) {}
 
 void AutoClickManager::StartTimer(HWND hWnd) {
-    if (m_state.autoClick) {
-        int interval = GenerateRandomInterval();
-        SetTimer(hWnd, IDT_AUTOCLICK, interval, NULL);
+    if (!m_state.autoClick) {
+        return;
     }
+
+    if (m_state.autoClickPoints.empty()) {
+        m_state.autoClickPoints.push_back({ m_state.dotX, m_state.dotY, m_state.dotSize, 3000 });
+    }
+
+    m_currentPointIndex = 0;
+    int interval = GetCurrentPointInterval();
+    SetTimer(hWnd, IDT_AUTOCLICK, interval, NULL);
 }
 
 void AutoClickManager::StopTimer(HWND hWnd) {
@@ -18,50 +24,65 @@ void AutoClickManager::StopTimer(HWND hWnd) {
 }
 
 void AutoClickManager::PerformClick(HWND hWnd) {
-    // Generate random coordinates within dot range
-    int randomX = m_state.dotX + (rand() % m_state.dotSize);
-    int randomY = m_state.dotY + (rand() % m_state.dotSize);
+    if (m_state.autoClickPoints.empty()) {
+        return;
+    }
+
+    const AutoClickPoint& point = m_state.autoClickPoints[m_currentPointIndex];
+    int randomX = point.x + (rand() % max(1, point.size));
+    int randomY = point.y + (rand() % max(1, point.size));
     POINT pt = { randomX, randomY };
     ClientToScreen(hWnd, &pt);
 
-    // Temporarily make window transparent to input
     LONG exStyle = GetWindowLong(hWnd, GWL_EXSTYLE);
     SetWindowLong(hWnd, GWL_EXSTYLE, exStyle | WS_EX_TRANSPARENT);
 
-    // Map screen coords to absolute mouse coords (0-65535)
     int sw = GetSystemMetrics(SM_CXSCREEN);
     int sh = GetSystemMetrics(SM_CYSCREEN);
-    
-    INPUT inputs[3] = {};
-    // Move
+
+    INPUT inputs[5] = {};
     inputs[0].type = INPUT_MOUSE;
     inputs[0].mi.dx = (LONG)(pt.x * (65535.0f / (sw - 1)));
     inputs[0].mi.dy = (LONG)(pt.y * (65535.0f / (sh - 1)));
     inputs[0].mi.dwFlags = MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_MOVE;
-    
-    // Down
+
     inputs[1].type = INPUT_MOUSE;
     inputs[1].mi.dwFlags = MOUSEEVENTF_LEFTDOWN;
-    
-    // Up
     inputs[2].type = INPUT_MOUSE;
     inputs[2].mi.dwFlags = MOUSEEVENTF_LEFTUP;
 
-    SendInput(3, inputs, sizeof(INPUT));
+    inputs[3].type = INPUT_MOUSE;
+    inputs[3].mi.dwFlags = MOUSEEVENTF_LEFTDOWN;
+    inputs[4].type = INPUT_MOUSE;
+    inputs[4].mi.dwFlags = MOUSEEVENTF_LEFTUP;
 
-    // Restore window style
+    SendInput(5, inputs, sizeof(INPUT));
     SetWindowLong(hWnd, GWL_EXSTYLE, exStyle);
 }
 
 void AutoClickManager::ResetTimer(HWND hWnd) {
     KillTimer(hWnd, IDT_AUTOCLICK);
-    if (m_state.autoClick) {
-        int interval = GenerateRandomInterval();
-        SetTimer(hWnd, IDT_AUTOCLICK, interval, NULL);
+    if (!m_state.autoClick || m_state.autoClickPoints.empty()) {
+        return;
     }
+
+    AdvanceToNextPoint();
+    int interval = GetCurrentPointInterval();
+    SetTimer(hWnd, IDT_AUTOCLICK, interval, NULL);
 }
 
-int AutoClickManager::GenerateRandomInterval() {
-    return (rand() % 7000) + 3000; // 3-20s
+int AutoClickManager::GetCurrentPointInterval() const {
+    if (m_state.autoClickPoints.empty()) {
+        return 3000;
+    }
+    return max(100, m_state.autoClickPoints[m_currentPointIndex].intervalMs);
+}
+
+void AutoClickManager::AdvanceToNextPoint() {
+    if (m_state.autoClickPoints.empty()) {
+        m_currentPointIndex = 0;
+        return;
+    }
+    m_currentPointIndex = (m_currentPointIndex + 1) % static_cast<int>(m_state.autoClickPoints.size());
 }
          

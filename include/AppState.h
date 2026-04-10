@@ -1,5 +1,14 @@
 #pragma once
 #include <string>
+#include <vector>
+
+// Per-click-point auto click configuration
+struct AutoClickPoint {
+    int x = 50;
+    int y = 50;
+    int size = 50;
+    int intervalMs = 3000; // interval for this point in milliseconds
+};
 
 // Global Application State Structure
 struct AppState {
@@ -19,8 +28,13 @@ struct AppState {
     
     // Auto Clicker Properties
     bool autoClick = false;
+    bool autoClickSuspendedByMenu = false;
     bool lockWindowPosition = false;
     bool holeFollowCursor = false;
     int dotX = 50, dotY = 50;
-    const int dotSize =50;
+    const int dotSize = 50;
+    std::vector<AutoClickPoint> autoClickPoints;
+    int activeAutoClickPoint = -1;
+    int contextMenuX = 0;
+    int contextMenuY = 0;
 };

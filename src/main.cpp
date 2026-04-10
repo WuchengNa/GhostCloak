@@ -3,6 +3,7 @@
 #include <string>
 #include <ctime>
 #include "AppState.h"
+#include "Commands.h"
 #include "ConfigManager.h"
 #include "BackgroundManager.h"
 #include "UIManager.h"
@@ -29,7 +30,7 @@
 
 const COLORREF TRANSPARENT_KEY = RGB(0, 255, 0);
 
-// Global objects
+// Global objectsv
 AppState g_State;
 HWND g_hWnd = NULL;
 ULONG_PTR g_gdiplusToken;
@@ -38,6 +39,16 @@ BackgroundManager* g_bgMgr = NULL;
 UIManager* g_uiMgr = NULL;
 AutoClickManager* g_autoClickMgr = NULL;
 DragManager* g_dragMgr = NULL;
+
+int GetAutoClickPointIndexAt(const AppState& state, int x, int y) {
+    for (int i = 0; i < static_cast<int>(state.autoClickPoints.size()); ++i) {
+        const AutoClickPoint& pt = state.autoClickPoints[i];
+        if (WindowHelper::PtInRect(x, y, pt.x, pt.y, pt.size, pt.size)) {
+            return i;
+        }
+    }
+    return -1;
+}
 
 // Forward Declarations
 LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
@@ -177,8 +188,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
                 return TRUE;
             }
 
-            if (g_State.autoClick) {
-                if (WindowHelper::PtInRect(pt.x, pt.y, g_State.dotX, g_State.dotY, g_State.dotSize, g_State.dotSize)) {
+            if (!g_State.autoClickPoints.empty()) {
+                if (GetAutoClickPointIndexAt(g_State, pt.x, pt.y) >= 0) {
                     SetCursor(LoadCursor(NULL, IDC_SIZEALL));
                     return TRUE;
                 }
@@ -196,8 +207,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
     case WM_LBUTTONDOWN: {
         POINT pt = { GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
         
-        if (g_State.autoClick) {
-            if (WindowHelper::PtInRect(pt.x, pt.y, g_State.dotX, g_State.dotY, g_State.dotSize, g_State.dotSize)) {
+        if (!g_State.autoClickPoints.empty()) {
+            int clickedPoint = GetAutoClickPointIndexAt(g_State, pt.x, pt.y);
+            if (clickedPoint >= 0) {
+                g_State.activeAutoClickPoint = clickedPoint;
                 g_dragMgr->StartDrag(pt.x, pt.y, DRAG_DOT_MOVE);
                 SetCapture(hWnd);
                 return 0;
@@ -222,13 +235,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
             g_dragMgr->UpdateDrag(pt.x, pt.y, g_State);
             InvalidateRect(hWnd, NULL, FALSE);
         } else if (g_State.holeFollowCursor) {
-            // Use current client rect so clamps match actual window size
             RECT rc;
             GetClientRect(hWnd, &rc);
             int clientW = rc.right - rc.left;
             int clientH = rc.bottom - rc.top;
-
-            // Move hole so that mouse is its center
+ 
             g_State.holeX = pt.x - g_State.holeW / 2;
             g_State.holeY = pt.y - g_State.holeH / 2;
             if (g_State.holeX < 0) g_State.holeX = 0;
@@ -248,7 +259,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
         return 0;
 
     case WM_COMMAND: {
-        if (LOWORD(wParam) == ID_TRAY_AUTOCLICK) {
+        int id = LOWORD(wParam);
+        if (id == ID_TRAY_AUTOCLICK) {
             g_State.autoClick = !g_State.autoClick;
             if (g_State.autoClick) {
                 g_autoClickMgr->StartTimer(hWnd);
@@ -257,16 +269,46 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
             }
             InvalidateRect(hWnd, NULL, TRUE);
         }
-        else if (LOWORD(wParam) == ID_TRAY_HOLEFOLLOW) {
+        else if (id == ID_TRAY_ADD_AUTOCLICK_POINT) {
+            AutoClickPoint point;
+            point.size = 50;
+            point.x = max(0, min(g_State.winW - point.size, g_State.contextMenuX));
+            point.y = max(0, min(g_State.winH - point.size, g_State.contextMenuY));
+            g_State.autoClickPoints.push_back(point);
+            g_State.activeAutoClickPoint = static_cast<int>(g_State.autoClickPoints.size()) - 1;
+            InvalidateRect(hWnd, NULL, FALSE);
+        }
+        else if (id == ID_TRAY_REMOVE_AUTOCLICK_POINT) {
+            if (g_State.activeAutoClickPoint >= 0 && g_State.activeAutoClickPoint < static_cast<int>(g_State.autoClickPoints.size())) {
+                g_State.autoClickPoints.erase(g_State.autoClickPoints.begin() + g_State.activeAutoClickPoint);
+                if (g_State.activeAutoClickPoint >= static_cast<int>(g_State.autoClickPoints.size())) {
+                    g_State.activeAutoClickPoint = static_cast<int>(g_State.autoClickPoints.size()) - 1;
+                }
+                InvalidateRect(hWnd, NULL, FALSE);
+            }
+        }
+        else if (id == ID_TRAY_SET_INTERVAL_1000 || id == ID_TRAY_SET_INTERVAL_2000 || id == ID_TRAY_SET_INTERVAL_3000 ||
+                id == ID_TRAY_SET_INTERVAL_5000 || id == ID_TRAY_SET_INTERVAL_10000) {
+            if (g_State.activeAutoClickPoint >= 0 && g_State.activeAutoClickPoint < static_cast<int>(g_State.autoClickPoints.size())) {
+                int interval = 3000;
+                if (id == ID_TRAY_SET_INTERVAL_1000) interval = 1000;
+                else if (id == ID_TRAY_SET_INTERVAL_2000) interval = 2000;
+                else if (id == ID_TRAY_SET_INTERVAL_3000) interval = 3000;
+                else if (id == ID_TRAY_SET_INTERVAL_5000) interval = 5000;
+                else if (id == ID_TRAY_SET_INTERVAL_10000) interval = 10000;
+                g_State.autoClickPoints[g_State.activeAutoClickPoint].intervalMs = interval;
+            }
+        }
+        else if (id == ID_TRAY_HOLEFOLLOW) {
             g_State.holeFollowCursor = !g_State.holeFollowCursor;
         }
-        else if (LOWORD(wParam) == ID_TRAY_LOCKMOVE) {
+        else if (id == ID_TRAY_LOCKMOVE) {
             g_State.lockWindowPosition = !g_State.lockWindowPosition;
         }
-        else if (LOWORD(wParam) == ID_TRAY_GRAB) {
+        else if (id == ID_TRAY_GRAB) {
             g_bgMgr->GrabBackground(hWnd);
         }
-        else if (LOWORD(wParam) == ID_TRAY_RESET) {
+        else if (id == ID_TRAY_RESET) {
             g_bgMgr->ResetBackground(hWnd);
         }
         return 0; 
@@ -282,9 +324,30 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 
     case WM_RBUTTONUP:
     case WM_NCRBUTTONUP: {
-        POINT pt;
-        GetCursorPos(&pt);
-        g_uiMgr->ShowContextMenu(hWnd, pt);
+        POINT screenPt;
+        GetCursorPos(&screenPt);
+        POINT clientPt = screenPt;
+        ScreenToClient(hWnd, &clientPt);
+
+        // Pause AutoClick while the context menu is open.
+        if (g_State.autoClick && !g_State.autoClickSuspendedByMenu) {
+            g_autoClickMgr->StopTimer(hWnd);
+            g_State.autoClickSuspendedByMenu = true;
+        }
+
+        g_State.contextMenuX = clientPt.x;
+        g_State.contextMenuY = clientPt.y;
+        g_State.activeAutoClickPoint = GetAutoClickPointIndexAt(g_State, clientPt.x, clientPt.y);
+        g_uiMgr->ShowContextMenu(hWnd, screenPt);
+
+        // Resume AutoClick after the menu closes, unless user turned it off from the menu.
+        if (g_State.autoClickSuspendedByMenu) {
+            g_State.autoClickSuspendedByMenu = false;
+            if (g_State.autoClick) {
+                g_autoClickMgr->StartTimer(hWnd);
+            }
+        }
+
         return 0;
     }
 
@@ -331,6 +394,15 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
             if (g_State.holeX > maxHoleX) g_State.holeX = maxHoleX;
             if (g_State.holeY > maxHoleY) g_State.holeY = maxHoleY;
 
+            for (auto& point : g_State.autoClickPoints) {
+                int maxPointX = g_State.winW - point.size;
+                int maxPointY = g_State.winH - point.size;
+                if (maxPointX < 0) maxPointX = 0;
+                if (maxPointY < 0) maxPointY = 0;
+                if (point.x > maxPointX) point.x = maxPointX;
+                if (point.y > maxPointY) point.y = maxPointY;
+            }
+
             int maxDotX = g_State.winW - g_State.dotSize;
             if (maxDotX < 0) maxDotX = 0;
             int maxDotY = g_State.winH - g_State.dotSize;
@@ -358,7 +430,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
             if (maxHoleY < 0) maxHoleY = 0;
             if (g_State.holeX > maxHoleX) g_State.holeX = maxHoleX;
             if (g_State.holeY > maxHoleY) g_State.holeY = maxHoleY;
-
             InvalidateRect(hWnd, NULL, FALSE);
         }
         return 0;

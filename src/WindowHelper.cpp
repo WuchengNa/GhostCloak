@@ -30,9 +30,9 @@ LRESULT WindowHelper::HandleNCHitTest(HWND hWnd, const AppState& state, POINT pt
     GetClientRect(hWnd, &rc);
     int m = 8;
 
-    // Check AutoClick Dot (Highest Priority)
-    if (state.autoClick) {
-        if (PtInRect(pt.x, pt.y, state.dotX, state.dotY, state.dotSize, state.dotSize)) {
+    // Check AutoClick Points (Highest Priority)
+    for (const auto& clickPoint : state.autoClickPoints) {
+        if (PtInRect(pt.x, pt.y, clickPoint.x, clickPoint.y, clickPoint.size, clickPoint.size)) {
             return HTCLIENT;
         }
     }

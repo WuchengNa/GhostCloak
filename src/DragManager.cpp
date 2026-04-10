@@ -23,8 +23,11 @@ void DragManager::UpdateDrag(int x, int y, AppState& state) {
         state.holeH = max(50, state.holeH + dy);
     }
     else if (m_dragMode == DRAG_DOT_MOVE) {
-        state.dotX += dx;
-        state.dotY += dy;
+        if (state.activeAutoClickPoint >= 0 && state.activeAutoClickPoint < static_cast<int>(state.autoClickPoints.size())) {
+            auto& point = state.autoClickPoints[state.activeAutoClickPoint];
+            point.x += dx;
+            point.y += dy;
+        }
     }
     
     m_lastMouse = { x, y };
