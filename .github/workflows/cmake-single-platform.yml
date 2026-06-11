@@ -1,10 +1,15 @@
-name: CMake Build
+name: Build & Release
 
 on:
   push:
     branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
+  push:
+    tags: [ "v*" ]
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -16,12 +21,16 @@ jobs:
         include:
           - preset: win x64 Release
             build_preset: x64 Release
+            artifact: GhostCloak-x64-Release
           - preset: win x64 Debug
             build_preset: x64 Debug
+            artifact: GhostCloak-x64-Debug
           - preset: win x86 Release
             build_preset: x86 Release
+            artifact: GhostCloak-x86-Release
           - preset: win x86 Debug
             build_preset: x86 Debug
+            artifact: GhostCloak-x86-Debug
 
     steps:
     - uses: actions/checkout@v4
@@ -31,3 +40,41 @@ jobs:
 
     - name: Build
       run: cmake --build --preset "${{ matrix.build_preset }}"
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ matrix.artifact }}
+        path: output/bin*/**/*.exe
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: windows-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: artifacts
+
+    - name: Organize release files
+      run: |
+        mkdir release
+        Get-ChildItem -Path artifacts -Recurse -Filter "*.exe" | ForEach-Object {
+          $dirName = Split-Path (Split-Path $_.FullName -Parent) -Leaf
+          $archDir = Split-Path $_.FullName -Parent | Split-Path -Leaf
+          # e.g. bin_x64/Release/GhostCloak.exe -> GhostCloak-x64-Release.exe
+          $arch = if ($archDir -match "x64") { "x64" } else { "x86" }
+          $config = $dirName
+          Copy-Item $_.FullName "release/GhostCloak-${arch}-${config}.exe"
+        }
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v2
+      with:
+        generate_release_notes: true
+        files: release/*.exe
