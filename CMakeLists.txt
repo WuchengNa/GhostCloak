@@ -11,14 +11,26 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Add cmake module path
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
-# Set output directories
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+# Architecture suffix for output paths (_x64 for 64-bit, empty for 32-bit)
+set(ARCH_SUFFIX "" CACHE STRING "Architecture suffix for output paths")
+
+# Set output directories — MSVC multi-config generator needs per-config properties
+# to place executables under output/bin[<suffix>]/<Debug|Release>/
+set(OUTPUT_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/output)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/bin${ARCH_SUFFIX})
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/lib${ARCH_SUFFIX})
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/lib${ARCH_SUFFIX})
+
+# Per-config output directories for multi-config generators (MSVC)
+foreach(_config Debug Release RelWithDebInfo MinSizeRel)
+    string(TOUPPER ${_config} _config_upper)
+    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_${_config_upper} ${OUTPUT_ROOT}/bin${ARCH_SUFFIX}/${_config})
+    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_${_config_upper} ${OUTPUT_ROOT}/lib${ARCH_SUFFIX}/${_config})
+    set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_${_config_upper} ${OUTPUT_ROOT}/lib${ARCH_SUFFIX}/${_config})
+endforeach()
 
 # Find required packages
-# GDI+ is a Windows SDK library, not a CMake-package — use find_library instead of find_package
-find_library(GDIPLUS_LIBRARY gdiplus)
+# GDI+ is a Windows SDK library — link directly, MSVC linker resolves it from the SDK paths
 
 # Source files
 set(SOURCES
@@ -53,7 +65,7 @@ target_include_directories(GhostCloak PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/includ
 
 # Link libraries
 target_link_libraries(GhostCloak PRIVATE
-    ${GDIPLUS_LIBRARY}
+    gdiplus
     user32
     gdi32
     shlwapi

@@ -1,0 +1,75 @@
+{
+    "version": 3,
+    "configurePresets": [
+        {
+            "name": "win x64 Release",
+            "displayName": "win x64 Release",
+            "binaryDir": "${sourceDir}/build_win64",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "ARCH_SUFFIX": "_x64"
+            },
+            "architecture": "x64"
+        },
+        {
+            "name": "win x64 Debug",
+            "displayName": "win x64 Debug",
+            "binaryDir": "${sourceDir}/build_win64_debug",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "ARCH_SUFFIX": "_x64"
+            },
+            "architecture": "x64"
+        },
+        {
+            "name": "win x86 Release",
+            "displayName": "win x86 Release",
+            "binaryDir": "${sourceDir}/build_win32",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "ARCH_SUFFIX": ""
+            },
+            "architecture": "win32"
+        },
+        {
+            "name": "win x86 Debug",
+            "displayName": "win x86 Debug",
+            "binaryDir": "${sourceDir}/build_win32_debug",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "ARCH_SUFFIX": ""
+            },
+            "architecture": "win32"
+        }
+    ],
+    "buildPresets": [
+        {
+            "name": "x86 Release",
+            "description": "",
+            "displayName": "",
+            "configurePreset": "win x86 Release",
+            "configuration": "Release"
+        },
+        {
+            "name": "x86 Debug",
+            "description": "",
+            "displayName": "",
+            "configurePreset": "win x86 Debug",
+            "configuration": "Debug"
+        },
+        {
+            "name": "x64 Release",
+            "description": "",
+            "displayName": "",
+            "configurePreset": "win x64 Release",
+            "configuration": "Release"
+        },
+        {
+            "name": "x64 Debug",
+            "description": "",
+            "displayName": "",
+            "configurePreset": "win x64 Debug",
+            "configuration": "Debug"
+        }
+    ]
+}
