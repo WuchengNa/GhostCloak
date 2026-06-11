@@ -17,7 +17,8 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 
 # Find required packages
-find_package(gdiplus REQUIRED)
+# GDI+ is a Windows SDK library, not a CMake-package — use find_library instead of find_package
+find_library(GDIPLUS_LIBRARY gdiplus)
 
 # Source files
 set(SOURCES
@@ -52,7 +53,7 @@ target_include_directories(GhostCloak PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/includ
 
 # Link libraries
 target_link_libraries(GhostCloak PRIVATE
-    GDIPlus::GDIPlus
+    ${GDIPLUS_LIBRARY}
     user32
     gdi32
     shlwapi
