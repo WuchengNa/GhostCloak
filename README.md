@@ -53,54 +53,39 @@ GhostCloak 是一款极轻量、极纯净的 Windows 视觉欺骗工具，专为
 
 ✅ **现代化工程**
 - 模块化代码结构（8 个功能明确的类）
-- CMake 构建系统
+- CMake 构建系统 + CMakePresets 预设配置
+- 支持 x86/x64 多架构输出
 - 支持多种 IDE 开发
 
 ---
 
 ## 快速开始
 
-### Windows 用户 - 三种方式
+### VS Code 开发（推荐）
 
-#### 方式 1：PowerShell（推荐）
-```powershell
-# Release 版本
-.\cmake_build.ps1
+安装 **CMake Tools** 扩展后：
+1. Ctrl+Shift+P → **CMake: Select Configure Preset** → 选择预设（如 `win x64 Release`）
+2. Ctrl+Shift+P → **CMake: Configure**
+3. Ctrl+Shift+P → **CMake: Build** 或 Ctrl+Shift+B
+4. F5 → 调试运行
 
-# Debug 版本
-.\cmake_build.ps1 -BuildType Debug
+### 命令行
 
-# 清理重建
-.\cmake_build.ps1 -Clean
-```
-
-#### 方式 2：批处理脚本
-```batch
-cmake_build.bat
-```
-
-#### 方式 3：命令行
 ```bash
-mkdir build
-cd build
-cmake .. -G "Visual Studio 17 2022" -A x64
-cmake --build . --config Release
+# 使用 CMake Presets 构建（推荐）
+cmake --preset "win x64 Release"      # 配置 x64 Release
+cmake --build --preset "x64 Release"   # 编译
+
+cmake --preset "win x86 Debug"         # 配置 x86 Debug
+cmake --build --preset "x86 Debug"     # 编译
 ```
 
-### Visual Studio 集成（推荐用于开发）
+### Visual Studio 集成
 
 1. Visual Studio 2022 → **文件** → **打开** → **文件夹**
 2. 选择 GhostCloak 项目文件夹
-3. 等待 CMake 自动配置完成
+3. 等待 CMake 自动配置完成（自动识别 CMakePresets.json）
 4. 点击 **生成** 菜单编译
-
-### VS Code 开发
-
-安装 **CMake Tools** 扩展后：
-1. Ctrl+Shift+P → **CMake: Configure**
-2. 选择 **Visual Studio 17 2022**
-3. Ctrl+Shift+B → 编译
-4. F5 → 调试运行
 
 ---
 
@@ -130,17 +115,24 @@ GhostCloak/
 │   ├── WindowHelper.cpp
 │   └── DragManager.cpp
 │
-├── cmake/                         # CMake 模块
-│   └── Findgdiplus.cmake         # GDI+ 库查找
-│
 ├── CMakeLists.txt                # 主 CMake 配置
-├── cmake_build.bat               # Windows 快速构建
-├── cmake_build.ps1               # PowerShell 构建脚本
+├── CMakePresets.json             # CMake 预设（x86/x64 + Debug/Release）
 ├── .gitignore                    # Git 忽略列表
-└── build/                        # 构建输出（自动生成）
-    └── bin/
-        ├── Debug/
-        └── Release/
+│
+├── build_win64/                  # x64 构建缓存（自动生成）
+├── build_win64_debug/            # x64 Debug 构建缓存
+├── build_win32/                  # x86 构建缓存
+├── build_win32_debug/            # x86 Debug 构建缓存
+│
+└── output/                       # 编译输出（自动生成）
+    ├── bin/                      # x86 可执行文件
+    │   ├── Debug/GhostCloak.exe
+    │   └── Release/GhostCloak.exe
+    ├── bin_x64/                  # x64 可执行文件
+    │   ├── Debug/GhostCloak.exe
+    │   └── Release/GhostCloak.exe
+    ├── lib/                      # x86 库文件
+    └── lib_x64/                  # x64 库文件
 ```
 
 ### 核心类说明
@@ -170,36 +162,82 @@ GhostCloak/
 | Windows SDK | 10.0.22621+ | 通常随 VS 安装 |
 | C++ 编译器 | MSVC 2022 | 支持 C++17 |
 
+### CMake Presets 预设
+
+项目通过 `CMakePresets.json` 提供了 4 个配置预设：
+
+| 配置预设 | 架构 | 类型 | 构建缓存目录 | 输出目录 |
+|----------|------|------|-------------|----------|
+| `win x64 Release` | x64 | Release | `build_win64/` | `output/bin_x64/Release/` |
+| `win x64 Debug` | x64 | Debug | `build_win64_debug/` | `output/bin_x64/Debug/` |
+| `win x86 Release` | x86 | Release | `build_win32/` | `output/bin/Release/` |
+| `win x86 Debug` | x86 | Debug | `build_win32_debug/` | `output/bin/Debug/` |
+
 ### 编译输出位置
 
-成功编译后的可执行文件：
-- **Release 版本**：`build\bin\Release\GhostCloak.exe`
-- **Debug 版本**：`build\bin\Debug\GhostCloak.exe`
+成功编译后的可执行文件按架构和配置分目录输出：
+
+```
+output/
+  bin/                    ← x86 输出
+    Debug/GhostCloak.exe
+    Release/GhostCloak.exe
+  bin_x64/                ← x64 输出
+    Debug/GhostCloak.exe
+    Release/GhostCloak.exe
+```
+
+### 构建命令
+
+```bash
+# x64 Release（推荐）
+cmake --preset "win x64 Release"
+cmake --build --preset "x64 Release"
+
+# x64 Debug
+cmake --preset "win x64 Debug"
+cmake --build --preset "x64 Debug"
+
+# x86 Release
+cmake --preset "win x86 Release"
+cmake --build --preset "x86 Release"
+
+# x86 Debug
+cmake --preset "win x86 Debug"
+cmake --build --preset "x86 Debug"
+```
 
 ### 清理构建文件
 
 ```bash
-# 删除所有构建输出
-rmdir /s build
+# 删除所有构建缓存和编译输出
+rmdir /s build_win64
+rmdir /s build_win64_debug
+rmdir /s build_win32
+rmdir /s build_win32_debug
+rmdir /s output
 ```
 
 ### 依赖库
 
-项目自动链接以下库：
-- `gdiplus.lib` - 图形绘制
-- `user32.lib` - Windows 用户界面
-- `gdi32.lib` - GDI 库
-- `shlwapi.lib` - Shell 轻量级实用程序
-- `shell32.lib` - Shell 库
+项目自动链接以下 Windows SDK 库（无需手动安装）：
+
+| 库文件 | 用途 |
+|--------|------|
+| `gdiplus.lib` | GDI+ 图形绘制 |
+| `user32.lib` | Windows 用户界面 |
+| `gdi32.lib` | GDI 库 |
+| `shlwapi.lib` | Shell 轻量级实用程序 |
+| `shell32.lib` | Shell 库 |
 
 ### CMake 配置选项
 
 ```bash
-# 设置 C++ 标准版本（默认 C++17）
-cmake .. -DCMAKE_CXX_STANDARD=20
+# 自定义架构后缀（默认 x64 预设为 "_x64"，x86 预设为空）
+cmake --preset "win x64 Release" -DARCH_SUFFIX="_custom"
 
-# 设置构建类型
-cmake .. -DCMAKE_BUILD_TYPE=Release  # Release 或 Debug
+# 设置 C++ 标准版本（默认 C++17）
+cmake --preset "win x64 Release" -DCMAKE_CXX_STANDARD=20
 ```
 
 ---
@@ -248,7 +286,7 @@ cmake .. -DCMAKE_BUILD_TYPE=Release  # Release 或 Debug
     ↓
 集成 CMake 构建系统
     ↓
-现代化 C++ 工程结构 ✓
+CMakePresets 预设 + 多架构输出 ✓
 ```
 
 ### 模块化优势
@@ -262,12 +300,13 @@ cmake .. -DCMAKE_BUILD_TYPE=Release  # Release 或 Debug
 
 ### 构建系统变化
 
-| 方面 | 旧系统 (build.bat) | 新系统 (CMake) |
-|------|-------------------|----------------|
-| 配置方式 | 批处理脚本 | CMake 脚本 |
-| 跨平台支持 | Windows 专用 | 支持多平台 |
-| IDE 集成 | 仅命令行 | VS/VS Code/CLion 等 |
-| 依赖管理 | 手动指定 | 自动查找 |
+| 方面 | 旧系统 | 新系统 (CMake + Presets) |
+|------|--------|------------------------|
+| 配置方式 | 批处理脚本 | CMakePresets.json 预设 |
+| 架构支持 | 仅 x64 | x86 / x64 自动区分输出 |
+| IDE 集成 | 仅命令行 | VS / VS Code / CLion 等 |
+| 依赖管理 | 手动指定 Findgdiplus.cmake | 直接链接 Windows SDK 库 |
+| 输出组织 | build/bin/Debug|Release | output/bin|bin_x64/Debug|Release |
 | 编译优化 | 固定参数 | 灵活配置 |
 
 ---
@@ -278,16 +317,16 @@ cmake .. -DCMAKE_BUILD_TYPE=Release  # Release 或 Debug
 
 **症状**：CMake Error: No CMAKE_CXX_COMPILER could be found
 
-**解决**：
+**解决**：确保已安装 Visual Studio 2022 且 CMake 能检测到，或手动指定生成器：
 ```bash
-cmake .. -G "Visual Studio 17 2022" -A x64
+cmake --preset "win x64 Release"
 ```
 
 ### 找不到 GDI+ 头文件
 
 **症状**：fatal error C1083: Cannot open include file: 'gdiplus.h'
 
-**解决**：编辑 `cmake/Findgdiplus.cmake`，更新 MSVC 路径为你的 Visual Studio 安装目录
+**解决**：确保已安装 Windows SDK（通常随 Visual Studio 安装），在 Visual Studio Installer 中勾选 "Windows 10/11 SDK" 组件。
 
 ### 链接错误
 
@@ -307,29 +346,29 @@ cmake .. -G "Visual Studio 17 2022" -A x64
 
 ### 开发模式推荐
 
-```cmake
-# Debug 模式，完整符号表，优化关闭
-cmake .. -DCMAKE_BUILD_TYPE=Debug
+```bash
+# 配置 x64 Debug 预设
+cmake --preset "win x64 Debug"
 
 # 快速增量编译
-cmake --build . --config Debug --parallel 4
+cmake --build --preset "x64 Debug" --parallel 4
 ```
 
 ### 发布模式推荐
 
-```cmake
-# Release 模式，完全优化，符号剥离
-cmake .. -DCMAKE_BUILD_TYPE=Release
+```bash
+# 配置 x64 Release 预设
+cmake --preset "win x64 Release"
 
 # 完整优化编译
-cmake --build . --config Release
+cmake --build --preset "x64 Release"
 ```
 
 ### 与版本控制集成
 
 项目已配置 `.gitignore`，包含：
-- CMake 缓存和生成文件
-- 构建目录和中间文件
+- CMake 缓存和生成文件（`build_*/`）
+- 编译输出目录（`output/`）
 - IDE 配置和用户文件
 - 编译产物和调试符号
 
@@ -359,6 +398,7 @@ cmake --build . --config Release
 ## 相关资源
 
 - 📚 [CMake 官方文档](https://cmake.org/cmake/help/latest/)
+- 📚 [CMake Presets 文档](https://cmake.org/cmake/help/latest/manual/cmake-presets.7.html)
 - 📚 [Visual Studio 开发文档](https://docs.microsoft.com/en-us/visualstudio/)
 - 📚 [C++ 参考资源](https://en.cppreference.com/)
 - 📚 [GDI+ 官方文档](https://docs.microsoft.com/en-us/windows/win32/gdiplus/)
@@ -378,7 +418,7 @@ cmake --build . --config Release
 
 - **语言**：C++17
 - **框架**：Win32 API + GDI+
-- **构建**：CMake 3.16+
+- **构建**：CMake 3.16+ / CMakePresets
 - **编译器**：MSVC 2022
 - **IDE 支持**：Visual Studio、VS Code、CLion
 
@@ -389,7 +429,7 @@ cmake --build . --config Release
 GhostCloak 项目现在是一个**现代化、模块化、易维护**的 C++ Windows 应用程序：
 
 ✨ **优雅的代码结构** - 8 个功能明确的类  
-🔨 **灵活的构建系统** - CMake + 多种构建脚本  
+🔨 **灵活的构建系统** - CMake Presets + 多架构输出  
 📚 **完善的文档** - 详细的指南和说明  
 🚀 **开发友好** - 支持多种 IDE 和工作流  
 
